@@ -1,6 +1,5 @@
 import { Server } from "socket.io";
 import dotenv from "dotenv";
-import { ProductsController } from "../components/products/productsController.js";
 import { MessagesController } from "../components/chats/messageController.js";
 
 dotenv.config();
@@ -12,11 +11,17 @@ export let socketServer = (app) => {
   });
   const io = new Server(httpServer);
   io.on(`connection`, async (socket) => {
-    socket.emit(`datos`, await ProductsController.getAllProducts());
-    socket.emit("messages", await MessagesController.getMessages());
+    let messagesController = new MessagesController();
+    fetch("http://localhost:8080/api/products")
+      .then((data) => data.json())
+      .then((res) => res.payload)
+      .then((datos) => {
+        socket.emit(`datos`, datos);
+      });
+    socket.emit("messages", await messagesController.getMessages());
     socket.on("newMessage", async (data) => {
-      await MessagesController.createMessage(data);
-      io.emit("messages", await messagesModel.find());
+      await messagesController.createMessages(data);
+      io.emit("messages", await messagesController.getMessages());
     });
   });
 };

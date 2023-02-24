@@ -8,6 +8,6 @@ export class MessagesServices {
       return this.MessagesModel.getMessages()
     }
     createMessages=(data)=>{
-        return this.MessagesModel.createMessages(data)
+        return this.MessagesModel.createMessage(data)
     }
   }

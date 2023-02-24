@@ -1,299 +1,208 @@
-// import express from "express";
-// import mongoose from "mongoose";
-// const router = express.Router();
-// import productosEnEmpresa from "../dao/filesystem/manangers/productMananger.js";
-// import { productsModel } from "../apiServices/products/productsModel.js";
-// import { cartsModel } from "../apiServices/carts/cartsModel.js";
+import express from "express";
+import mongoose from "mongoose";
+const router = express.Router();
+import productosEnEmpresa from "../dao/filesystem/manangers/productMananger.js";
+
 // import { actualizarPagina } from "../public/js/funcionActualizaLinks.js";
-// import { verificarAdmin } from "../public/js/verificarAdmin.js";
-// import { passportCall } from "../utils.js";
+import { verificarAdmin } from "../scripts/verificarAdmin.js";
 
-// const productMananger = productosEnEmpresa;
+import { passportCall } from "../middlewares/authMiddlewares.js";
 
-// router.get(`/`, passportCall("jwt"), async (req, res) => {
-//   let adminSession = verificarAdmin(req);
-//   let { activateSession, admin } = adminSession;
-//   res.render(`home`, {
-//     admin,
-//     activateSession,
-//     style: "inicio.css",
-//   });
-// });
+const productMananger = productosEnEmpresa;
 
-// router.get(`/products`, passportCall("jwt"), async (req, res) => {
-//   let adminSession = verificarAdmin(req);
-//   let { activateSession, admin } = adminSession;
-//   const productos = await productsModel.paginate(
-//     {},
-//     { limit: 3, page: 1, lean: true }
-//   ); //* Buscamos los productos
-//   if (productos && productos.docs.length > 0) {
-//     //* Verificamos la existencia de los producto
-//     if (
-//       req.query.limit ||
-//       req.query.page ||
-//       req.query.sort ||
-//       req.query.query //* Revisamos si tienen params
-//     ) {
-//       let limite = req.query.limit;
-//       let pagina = req.query.page;
-//       let orden = req.query.sort;
-//       let query = req.query.query; //* Guardamos los params
+router.get(`/`, passportCall("jwt"), async (req, res) => {
+  let adminSession = verificarAdmin(req);
+  let { activateSession, admin } = adminSession;
+  res.render(`home`, {
+    admin,
+    activateSession,
+    style: "inicio.css",
+  });
+});
 
-//       let filter = {
-//         //* Creamos una variable para configurar los filtros de la peticion
-//       };
-//       let options = {
-//         //* Creamos una variable para configurar las opciones de la peticion
-//         limit: limite || 3,
-//         page: pagina || 1,
-//         lean: true,
-//       };
+router.get(`/products`, passportCall("jwt"), async (req, res) => {
+  let adminSession = verificarAdmin(req);
+  let { activateSession, admin } = adminSession;
+  let params = req.query;
+  let products;
+  if (params.limit || params.page || params.sort || params.query) {
+    let url = "http://localhost:8080/api/products?";
+    for (let param in params) {
+      let completParam = `${param}=${params[param]}&`;
+      url += completParam;
+    }
 
-//       if (orden == "asc" || orden == "desc" || orden == 1 || orden == -1) {
-//         //* En caso de que se pida ordenamiento agregamos la opcion
-//         options = {
-//           ...options,
-//           sort: { price: orden },
-//         };
-//       }
-//       if (query == "disponible") {
-//         //* En caso de que se busque por disponibilidad agregamos el filtro
-//         filter = {
-//           status: true,
-//         };
-//       }
-//       if (query == "agotado") {
-//         //* En caso de que se busque por disponibilidad agregamos el filtro
-//         filter = {
-//           status: false,
-//         };
-//       }
-//       const response = await productsModel.paginate(filter, options); //* Hacemos la paginación
+    products = await fetch(url.slice(0, -1))
+      .then((res) => res.json())
+      .then((res) => res);
+  } else {
+    products = await fetch(`http://localhost:8080/api/products`)
+      .then((res) => res.json())
+      .then((res) => {
+        return res;
+      });
+  }
 
-//       if (filter.status == false && response.docs.length < 1) {
-//         let mensaje = "No hay productos agotados";
-//         return res.render(`products/products`, {
-//           admin,
-//           activateSession,
-//           mensaje,
-//           style: "listasDeProductos.css",
-//         });
-//       }
-//       if (pagina > response.totalPages || 0 >= pagina) {
-//         //* En caso de que busque una página inexistente sera informado
-//         let mensaje = `Página no encontrada, las páginas van de 1 a ${response.totalPages} `;
-//         return res.render(`products/products`, {
-//           admin,
-//           activateSession,
-//           mensaje,
-//           style: "listasDeProductos.css",
-//         });
-//       }
+  if (products.status == 400) {
+    return res.render("products/products", {
+      admin,
+      activateSession,
+      mensaje: products.response,
+      style: "listasDeProductos.css",
+    });
+  }
+  let prevLink = `${products.prevLink}`,
+    nextLink = `${products.nextLink}`,
+    firstLink = `${products.firstLink}`,
+    ultimateLink = `${products.ultimateLink}`;
 
-//       let newGetFormat = {
-//         status: "Success",
-//         payload: response.docs,
-//         totalPages: response.totalPages,
-//         prevPage: response.prevPage,
-//         nextPage: response.nextPage,
-//         page: response.page,
-//         hasPrevPage: response.hasPrevPage,
-//         hasNextPage: response.hasNextPage,
-//         prevLink: actualizarPagina(
-//           await response.totalPages,
-//           "anterior",
-//           req.originalUrl
-//         ),
-//         nextLink: actualizarPagina(
-//           await response.totalPages,
-//           "siguiente",
-//           req.originalUrl
-//         ),
-//         firstLink: actualizarPagina(
-//           await response.totalPages,
-//           "first",
-//           req.originalUrl
-//         ),
-//         ultimateLink: actualizarPagina(
-//           await response.totalPages,
-//           "ultimate",
-//           req.originalUrl
-//         ),
-//       };
+  return res.render("products/products", {
+    admin,
+    activateSession,
+    data: products.payload,
+    prevLink: prevLink.slice(4),
+    nextLink: nextLink.slice(4),
+    page: products.page,
+    firstLink: firstLink.slice(4),
+    ultimateLink: ultimateLink.slice(4),
+    style: "listasDeProductos.css",
+  });
+});
 
-//       let data = newGetFormat.payload;
-//       let nextLink = newGetFormat.nextLink;
-//       let prevLink = newGetFormat.prevLink;
-//       let firstLink = newGetFormat.firstLink;
-//       let ultimateLink = newGetFormat.ultimateLink;
-//       let page = newGetFormat.page;
-//       return res.render(`products/products`, {
-//         admin,
-//         activateSession,
-//         firstLink,
-//         ultimateLink,
-//         prevLink,
-//         nextLink,
-//         page,
-//         data,
-//         style: "listasDeProductos.css",
-//       });
-//     }
-//     let data = await productos.docs;
-//     let prevLink = actualizarPagina(
-//       await productos.totalPages,
-//       "anterior",
-//       req.originalUrl
-//     );
-//     let nextLink = actualizarPagina(
-//       await productos.totalPages,
-//       "siguiente",
-//       req.originalUrl
-//     );
-//     let firstLink = actualizarPagina(
-//       await productos.totalPages,
-//       "first",
-//       req.originalUrl
-//     );
-//     let ultimateLink = actualizarPagina(
-//       await productos.totalPages,
-//       "ultimate",
-//       req.originalUrl
-//     );
-//     let page = await productos.page;
+router.get(`/realtimeproducts`, passportCall("jwt"), async (req, res) => {
+  let adminSession = verificarAdmin(req);
+  let { activateSession, admin } = adminSession;
+  res.render(`products/realtimeProducts`, {
+    admin,
+    activateSession,
+    style: "listasDeProductos.css",
+  });
+});
 
-//     return res.render(`products/products`, {
-//       admin,
-//       activateSession,
-//       firstLink,
-//       ultimateLink,
-//       prevLink,
-//       nextLink,
-//       page,
-//       data,
-//       style: "listasDeProductos.css",
-//     });
-//   } else {
-//     let mensaje = "No hay ningún producto en la empresa";
-//     return res.render(`products/products`, {
-//       admin,
-//       activateSession,
-//       mensaje,
-//       style: "listasDeProductos.css",
-//     });
-//   }
-// });
+router.get(`/products/:pid`, passportCall("jwt"), async (req, res) => {
+  let adminSession = verificarAdmin(req);
+  let { activateSession, admin } = adminSession;
+  let id = req.params.pid;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    let error = "Id no válido";
+    return res.render(`products/detalles`, {
+      admin,
+      activateSession,
+      error,
+      style: "detalles.css",
+    });
+  }
+  let producto = await fetch(`http://localhost:8080/api/products/${id}`)
+    .then((res) => res.json())
+    .then((res) => res);
 
-// router.get(`/realtimeproducts`, passportCall("jwt"), async (req, res) => {
-//   let adminSession = verificarAdmin(req);
-//   let { activateSession, admin } = adminSession;
-//   res.render(`products/realtimeProducts`, {
-//     admin,
-//     activateSession,
-//     style: "listasDeProductos.css",
-//   });
-// });
+  if (!producto) {
+    let error = "Producto no encontrado";
+    return res.render(`products/detalles`, {
+      admin,
+      activateSession,
+      error,
+      style: "detalles.css",
+    });
+  }
+  let { _id, title, description, price, thumbnail, stock } = await producto[0];
 
-// router.get(`/products/:pid`, passportCall("jwt"), async (req, res) => {
-//   let adminSession = verificarAdmin(req);
-//   let { activateSession, admin } = adminSession;
-//   let id = req.params.pid;
-//   if (!mongoose.Types.ObjectId.isValid(id)) {
-//     let error = "Id no válido";
-//     return res.render(`products/detalles`, {
-//       admin,
-//       activateSession,
-//       error,
-//       style: "detalles.css",
-//     });
-//   }
-//   let producto = await productsModel.findOne({ _id: id });
-//   if (!producto) {
-//     let error = "Producto no encontrado";
-//     return res.render(`products/detalles`, {
-//       admin,
-//       activateSession,
-//       error,
-//       style: "detalles.css",
-//     });
-//   }
-//   let { _id, title, description, price, thumbnail, stock } = producto;
+  res.render(`products/detalles`, {
+    admin,
+    activateSession,
+    _id,
+    title,
+    description,
+    price,
+    thumbnail,
+    stock,
+    style: "detalles.css",
+  });
+});
+router.get(`/chat`, passportCall("jwt"), async (req, res) => {
+  let adminSession = verificarAdmin(req);
+  let { activateSession, admin } = adminSession;
+  res.render(`chat`, {
+    admin,
+    activateSession,
+    style: "chat.css",
+  });
+});
 
-//   res.render(`products/detalles`, {
-//     admin,
-//     activateSession,
-//     _id,
-//     title,
-//     description,
-//     price,
-//     thumbnail,
-//     stock,
-//     style: "detalles.css",
-//   });
-// });
+router.get(`/cart/:cid`, passportCall("jwt"), async (req, res) => {
+  let adminSession = verificarAdmin(req);
+  let { activateSession, admin } = adminSession;
+  let id = req.params.cid;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    let error = "Id del carrito no válido";
+    return res.render(`products/detalles`, {
+      admin,
+      activateSession,
+      error,
+      style: "detalles.css",
+    });
+  }
 
-// router.get(`/cart/:cid`, passportCall("jwt"), async (req, res) => {
-//   let adminSession = verificarAdmin(req);
-//   let { activateSession, admin } = adminSession;
-//   let id = req.params.cid;
-//   if (!mongoose.Types.ObjectId.isValid(id)) {
-//     let error = "Id del carrito no válido";
-//     return res.render(`products/detalles`, {
-//       admin,
-//       activateSession,
-//       error,
-//       style: "detalles.css",
-//     });
-//   }
-//   let carrito = await cartsModel.findOne({ _id: id });
-//   if (!carrito) {
-//     let error = "Carrito no encontrado";
-//     return res.render(`products/detalles`, {
-//       admin,
-//       activateSession,
-//       error,
-//       style: "detalles.css",
-//     });
-//   }
-//   let traerProductos = [];
-//   for (let producto of carrito.products) {
-//     let buscarProducto = await productsModel
-//       .findOne({ _id: producto._id })
-//       .lean()
-//       .exec();
-//     let nuevoObjeto = {
-//       ...buscarProducto,
-//       quantity: producto.quantity,
-//       totalPrice: buscarProducto.price * producto.quantity,
-//     };
-//     traerProductos.push(nuevoObjeto);
-//   }
+  let carrito = await fetch(`http://localhost:8080/api/carts/${id}`)
+    .then((res) => res.json())
+    .then((res) => res);
 
-//   res.render(`products/carrito`, {
-//     admin,
-//     activateSession,
-//     traerProductos,
-//     style: "carrito.css",
-//   });
-// });
+  if (!carrito) {
+    let error = "Carrito no encontrado";
+    return res.render(`products/detalles`, {
+      admin,
+      activateSession,
+      error,
+      style: "detalles.css",
+    });
+  }
+  let traerProductos = [];
+  let error;
 
-// router.get("/admin", passportCall("jwt"), (req, res) => {
-//   let adminSession = verificarAdmin(req);
-//   let { activateSession, admin } = adminSession;
+  if (!carrito[0].products) {
+    for (let producto of carrito.products) {
+      let buscarProducto = await fetch(
+        `http://localhost:8080/api/products/${id}`
+      )
+        .then((res) => res.json())
+        .then((res) => res);
 
-//   if ((activateSession, admin)) {
-//     return res.render(`admin/admin`, {
-//       admin,
-//       activateSession,
-//       mensaje: `Felicidades eres admin`,
-//       style: "admin.css",
-//     });
-//   }
-//   return res.render(`admin/admin`, {
-//     admin,
-//     activateSession,
-//     style: "admin.css",
-//   });
-// });
-// export default router;
+      let nuevoObjeto = {
+        ...buscarProducto,
+        quantity: producto.quantity,
+        totalPrice: buscarProducto.price * producto.quantity,
+      };
+      traerProductos.push(nuevoObjeto);
+    }
+  } else {
+    error = "El carrito se encuentra vacio";
+  }
+
+  res.render(`products/carrito`, {
+    admin,
+    activateSession,
+    traerProductos,
+    error,
+    style: "carrito.css",
+  });
+});
+
+router.get("/admin", passportCall("jwt"), (req, res) => {
+  let adminSession = verificarAdmin(req);
+  let { activateSession, admin } = adminSession;
+
+  if ((activateSession, admin)) {
+    return res.render(`admin/admin`, {
+      admin,
+      activateSession,
+      mensaje: `Felicidades eres admin`,
+      style: "admin.css",
+    });
+  }
+  return res.render(`admin/admin`, {
+    admin,
+    activateSession,
+    style: "admin.css",
+  });
+});
+export default router;

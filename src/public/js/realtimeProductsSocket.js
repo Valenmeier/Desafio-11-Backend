@@ -1,11 +1,11 @@
 const socket = io();
 const contenedor = document.querySelector(`.contenedorDeProductos`);
 
-socket.on("datos", (data) => {
+socket.on("datos", async (data) => {
   contenedor.innerHTML = "";
-  data.forEach((element) => {
-    contenedor.innerHTML += ` <div class="card">
-        
+  await data.forEach((element) => {
+    contenedor.innerHTML += ` <div >
+    <a href="products/${element._id}" class="card">
         <div class="imagenCard">
             <img src="${element.thumbnail}" alt="${element.title}" srcset="">
         </div>
@@ -27,6 +27,7 @@ socket.on("datos", (data) => {
                 </div>
             </div>
         </div>
+        </a>
     </div>`;
   });
 });

@@ -19,6 +19,7 @@ dotenv.config();
 const LocalStrategy = local.Strategy;
 const JWTStrategy = jwt.Strategy;
 const ExtractJWT = jwt.ExtractJwt;
+let cartController = new CartController();
 let userController = new UserController();
 
 const initializePassport = () => {
@@ -40,7 +41,7 @@ const initializePassport = () => {
             return done(null, user);
           }
 
-          let carrito = CartController.createCart();
+          let carrito = cartController.createCart();
           const newUser = {
             first_name: profile._json.given_name,
             last_name: profile._json.family_name,
@@ -77,7 +78,7 @@ const initializePassport = () => {
             return done(null, user);
           }
 
-          let carrito = CartController.createCart();
+          let carrito = cartController.createCart();
 
           const newUser = {
             user: profile._json.login,
@@ -109,9 +110,8 @@ const initializePassport = () => {
       async (username, password, done) => {
         try {
           const user = await userController
-            .searchUser(profile._json.email)
-            .lean()
-            .exec();
+            .searchUser(username)
+            
           if (!user) {
             return done(null, false);
           }
@@ -155,7 +155,7 @@ const initializePassport = () => {
             userNew = asignarRol;
           }
 
-          let carrito = CartController.createCart();
+          let carrito = cartController.createCart();
           const hashUser = {
             ...userNew,
             cart: carrito._id,

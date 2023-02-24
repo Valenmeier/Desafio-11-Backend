@@ -11,7 +11,7 @@ export class MessagesModel {
     this.db = model;
   }
   getMessages = async () => {
-    return await this.db.find();
+    return await this.db.find().lean().exec();
   };
   createMessage = async (data) => {
     await this.db.insertMany([data]);

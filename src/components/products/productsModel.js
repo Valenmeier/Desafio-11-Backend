@@ -18,7 +18,10 @@ export class ProductsModel {
     }
   };
   getAllProducts = async (req) => {
-    const productos = await this.db.paginate({}, { limit: 6, page: 1 }); //* Buscamos los productos
+    const productos = await this.db.paginate(
+      {},
+      { limit: 6, page: 1, lean: true }
+    ); //* Buscamos los productos
     if (productos && productos.docs.length > 0) {
       if (
         req.query.limit ||
@@ -38,6 +41,7 @@ export class ProductsModel {
           //* Creamos una variable para configurar las opciones de la peticion
           limit: limite || 6,
           page: pagina || 1,
+          lean: true,
         };
 
         if (orden == "asc" || orden == "desc" || orden == 1 || orden == -1) {
@@ -94,36 +98,47 @@ export class ProductsModel {
             "siguiente",
             req.originalUrl
           ),
+          firstLink: actualizarPagina(
+            await response.totalPages,
+            "first",
+            req.originalUrl
+          ),
+          ultimateLink: actualizarPagina(
+            await response.totalPages,
+            "ultimate",
+            req.originalUrl
+          ),
         };
 
         return {
           status: 200,
           response: newGetFormat,
         };
+      } else {
+        return {
+          status: 200,
+          response: {
+            status: "Success",
+            payload: productos.docs,
+            totalPages: productos.totalPages,
+            prevPage: productos.prevPage,
+            nextPage: productos.nextPage,
+            page: productos.page,
+            hasPrevPage: productos.hasPrevPage,
+            hasNextPage: productos.hasNextPage,
+            prevLink: actualizarPagina(
+              await productos.totalPages,
+              "anterior",
+              req.originalUrl
+            ),
+            nextLink: actualizarPagina(
+              await productos.totalPages,
+              "siguiente",
+              req.originalUrl
+            ),
+          },
+        };
       }
-      return {
-        status: 200,
-        response: {
-          status: "Success",
-          payload: productos.docs,
-          totalPages: productos.totalPages,
-          prevPage: productos.prevPage,
-          nextPage: productos.nextPage,
-          page: productos.page,
-          hasPrevPage: productos.hasPrevPage,
-          hasNextPage: productos.hasNextPage,
-          prevLink: actualizarPagina(
-            await productos.totalPages,
-            "anterior",
-            req.originalUrl
-          ),
-          nextLink: actualizarPagina(
-            await productos.totalPages,
-            "siguiente",
-            req.originalUrl
-          ),
-        },
-      };
     } else {
       return {
         status: 400,
@@ -145,7 +160,7 @@ export class ProductsModel {
     const response = await this.db.insertMany(nuevoProducto);
     return {
       status: 200,
-      message:"Producto subido correctamente",
+      message: "Producto subido correctamente",
       response: response,
     };
   };
